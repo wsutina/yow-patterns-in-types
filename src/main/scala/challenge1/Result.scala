@@ -23,6 +23,8 @@ object Error {
     Equal.derived[Error]
 }
 
+case class Point[A](x: A, y: A)
+
 /*
  * A result type that represents one of our errors or a success.
  */
@@ -43,10 +45,8 @@ sealed trait Result[A] {
    * scala> Fail(NotFound).fold(_ => 0, x => x)
    *  = 0
    */
-  def fold[X](
-    fail: Error => X,
-    ok: A => X
-  ): X = ???
+  def fold[X](fail: Error => X, ok: A => X): X =
+    ???
 
   /*
    * Exercise 1.2:
@@ -66,8 +66,10 @@ sealed trait Result[A] {
    * Advanced: Try using flatMap.
    */
   def map[B](f: A => B): Result[B] =
-    ???
-
+    this match {
+      case Ok(a) => Ok(f(a))
+      case Fail(error) => Fail(error)
+    }
 
   /*
    * Exercise 1.3:
@@ -92,7 +94,10 @@ sealed trait Result[A] {
    * Advanced: Try using fold.
    */
   def flatMap[B](f: A => Result[B]): Result[B] =
-    ???
+    this match {
+      case Ok(a) => f(a)
+      case Fail(error) => Fail(error)
+    }
 
 
   /*
@@ -108,8 +113,10 @@ sealed trait Result[A] {
    *  = 10
    */
   def getOrElse(otherwise: => A): A =
-    ???
-
+    this match {
+      case Ok(a) => a
+      case Fail(_) => otherwise
+    }
 
   /*
    * Exercise 1.4:
@@ -130,7 +137,10 @@ sealed trait Result[A] {
    *  = Fail(Unauthorized)
    */
   def |||(alternative: => Result[A]): Result[A] =
-    ???
+    this match {
+      case Ok(a) => Ok(a)
+      case Fail(_) => alternative
+    }
 }
 
 object Result {
@@ -169,10 +179,10 @@ object Example {
 
   /** Simplified method data type. */
   sealed trait Method
-  case object Get extends Method
-  case object Post extends Method
-  case object Put extends Method
-  case object Delete extends Method
+  case object GET extends Method
+  case object POST extends Method
+  case object PUT extends Method
+  case object DELETE extends Method
 
   /*
    * Parse the method if it is valid, otherwise fail with InvalidRequest.
@@ -180,11 +190,24 @@ object Example {
    * Hint: Scala defines String#toInt, but warning it throws exceptions if it is not a valid Int :|
    */
   def request(body: String): Result[Int] =
-    ???
+    try Ok(body.toInt)
+    catch {
+      case _ => Fail(InvalidRequest)
+    }
+    // Try(body.toInt) match {
+    //   case Success(n) => Ok(n)
+    //   case Failure(_) => Fail(InvalidRequest)
+    // }
 
   /* Parse the method if it is valid, otherwise fail with InvalidMethod. */
   def method(method: String): Result[Method] =
-    ???
+    method match {
+      case "GET" => Ok(GET)
+      case "POST" => Ok(POST)
+      case "PUT" => Ok(PUT)
+      case "DELETE" => Ok(DELETE)
+      case _ => Fail(InvalidMethod)
+    }
 
   /*
    * Route method and path to an implementation.
@@ -199,7 +222,15 @@ object Example {
    *   *           -> NotFound
    */
   def route(method: Method, path: String): Result[Int => Int] =
-    ???
+    (method, path) match {
+      case (GET, "/single") => Ok(identity)
+      case (GET, "/double") => Ok(_ * 2)
+      case (GET, "/triple") => Ok(_ * 3)
+      case (PUT, _) => Fail(Unauthorized)
+      case (POST, _) => Fail(Unauthorized)
+      case (DELETE, _) => Fail(Unauthorized)
+      case (_, _) => Fail(NotFound)
+    }
 
   /*
    * Attempt to compute an `answer`, by:
@@ -208,13 +239,31 @@ object Example {
    *  - determing request value
    *  - using the implementation and request value to compute an answer.
    */
-  def service(path: String, methodx: String, body: String): Result[Int] =
-    ???
+  def service(path: String, method: String, body: String): Result[Int] = {
+    // this.method(method)
+    // .flatMap(method => route(method, path))
+    // .flatMap(f => request(body).map(f))
+
+    for {
+      method <- this.method(method)
+      f <- route(method, path)
+      result <- request(body).map(f)
+    } yield result
+
+    // this.method(method) match {
+    //   case Ok(a) => route(a, path) match {
+    //     case Ok(a) => request(body).map(a)
+    //     case Fail(err) => Fail(err)
+    //   }
+    //   case Fail(err) => Fail(err)
+    // }
+  }
+
 
   /*
    * Sometimes we always an `answer`, so default to 0 if
    * our request failed in any way.
    */
   def run(path: String, method: String, body: String): Int =
-    ???
+    service(path, method, body).getOrElse(0)
 }
