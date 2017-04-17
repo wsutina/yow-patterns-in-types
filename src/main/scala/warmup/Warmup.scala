@@ -132,8 +132,18 @@ object Warmup {
    *     Type annotations are required when scala can
    *     not infer what you mean.
    */
-  def reverse[A](xs: List[A]): List[A] =
-    ???
+  def reverse[A](xs: List[A]): List[A] = {
+    // def loop[A](old: List[A], rev: List[A]): List[A] = {
+    //   old match {
+    //     case Nil => rev
+    //     case head :: tail => loop(tail, head :: rev)
+    //   }
+    //   loop(xs, Nil)
+    // }
+    // Foldleft
+    xs.foldLeft(List[A]())((rev, a) => a :: rev)
+  }
+
 
   /*
    * *Challenge* Exercise: 0.5:
@@ -154,6 +164,26 @@ object Warmup {
    * ~~~ library hint: use can just use List[A]#sorted to sort the list before you start.
    * ~~~ library hint: List[A]#min and List#max exist.
    */
-  def ranges(xs: List[Int]): List[(Int, Int)] =
-    ???
+  def ranges(xs: List[Int]): List[(Int, Int)] = {
+    def loop(xs: List[Int], tuples: List[(Int, Int)]): List[(Int, Int)] =
+      xs match {
+        case Nil => tuples
+        case head :: tail => {
+          if (!tuples.isEmpty && (head == tuples.last._2 + 1))
+            loop(tail, tuples.updated(tuples.length - 1, (tuples.last._1, head)))
+          else
+            loop(tail, tuples :+ (head, head))
+        }
+      }
+    loop(xs.sorted, List[(Int, Int)]())
+  }
+
+  // def ranges(xs: List[Int]): List[(Int, Int)] = {
+  //   xs.foldLeft(List[(Int, Int)]())((tuples, num) => {
+  //     if (!tuples.isEmpty && (num == tuples.last._2 + 1))
+  //       tuples.updated(tuples.length - 1, (tuples.last._1, num))
+  //     else
+  //       tuples :+ (num, num)
+  //   })
+  // }
 }
